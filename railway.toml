@@ -1,0 +1,9 @@
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[environments.production.variables]
+PORT = "3000"
+NODE_ENV = "production"
