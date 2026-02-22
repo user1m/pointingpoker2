@@ -28,7 +28,7 @@ function RoomPage() {
 
   const actualRoomId = roomId === 'new' ? undefined : roomId
 
-  const { state, vote, reveal, newRound, checkIn, markActive, assignHost } = useRoom(
+  const { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost } = useRoom(
     name,
     actualRoomId,
     code,
@@ -48,14 +48,17 @@ function RoomPage() {
     }
   }, [room?.id, roomId, navigate, name])
 
-  // Reset card selection on new round
+  // Reset card selection on new round or when voting closes
   useEffect(() => {
-    if (!room?.revealed) setSelectedCard(null)
-  }, [room?.revealed])
+    if (!room?.votingOpen) setSelectedCard(null)
+  }, [room?.votingOpen])
 
   const me = room?.players.find((p) => p.id === myId)
   const isHost = me?.isHost ?? false
-  const allVoted = room ? room.players.length > 0 && room.players.every((p) => p.hasVoted) : false
+  const allVoted = room
+    ? room.players.filter((p) => p.isActive).length > 0 &&
+      room.players.filter((p) => p.isActive).every((p) => p.hasVoted)
+    : false
 
   function handleVote(value: CardValue) {
     setSelectedCard(value)
@@ -103,6 +106,9 @@ function RoomPage() {
     )
   }
 
+  // ── Derived state ──────────────────────────────────────────────────────────
+  const { votingOpen, revealed } = room
+
   return (
     <>
       {attentionCheck && !isHost && (
@@ -118,13 +124,20 @@ function RoomPage() {
               <span className="px-2 py-0.5 bg-gray-800 rounded text-xs font-mono text-gray-300 border border-gray-700">
                 {room.code}
               </span>
+              {/* Voting status pill */}
+              {votingOpen && !revealed && (
+                <span className="px-2 py-0.5 bg-green-900/60 border border-green-700 rounded-full text-xs text-green-300 animate-pulse">
+                  Voting open
+                </span>
+              )}
               {!connected && (
                 <span className="text-xs text-yellow-400">Reconnecting…</span>
               )}
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <MusicPlayer />
+              {/* Music player — host only */}
+              {isHost && <MusicPlayer votingOpen={votingOpen} />}
               <button
                 type="button"
                 onClick={() => void copyLink()}
@@ -157,7 +170,10 @@ function RoomPage() {
                 </div>
               )}
 
-              {!room.revealed ? (
+              {/* Voting area */}
+              {revealed ? (
+                <VoteResults players={room.players} />
+              ) : votingOpen ? (
                 <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
                   <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-semibold text-white">Cast your vote</h2>
@@ -174,13 +190,40 @@ function RoomPage() {
                   />
                 </div>
               ) : (
-                <VoteResults players={room.players} />
+                // Lobby — waiting for host to open voting
+                <div className="bg-gray-900 rounded-xl border border-gray-800 p-10 flex flex-col items-center justify-center gap-3 text-center">
+                  {isHost ? (
+                    <>
+                      <p className="text-gray-400 text-sm">
+                        Press <span className="text-white font-medium">Open voting</span> when you're ready to start the round.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                          d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                      </svg>
+                      <p className="text-gray-400 text-sm">Waiting for the host to open voting…</p>
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Host controls */}
               {isHost && (
                 <div className="flex gap-3">
-                  {!room.revealed ? (
+                  {revealed ? (
+                    // After reveal → New round
+                    <button
+                      type="button"
+                      onClick={newRound}
+                      className="flex-1 py-2.5 bg-green-700 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors"
+                    >
+                      New round
+                    </button>
+                  ) : votingOpen ? (
+                    // Voting open → Reveal votes
                     <button
                       type="button"
                       onClick={reveal}
@@ -190,12 +233,13 @@ function RoomPage() {
                       Reveal votes
                     </button>
                   ) : (
+                    // Lobby → Open voting
                     <button
                       type="button"
-                      onClick={newRound}
+                      onClick={openVoting}
                       className="flex-1 py-2.5 bg-green-700 hover:bg-green-600 text-white font-semibold rounded-lg transition-colors"
                     >
-                      New round
+                      Open voting
                     </button>
                   )}
                 </div>

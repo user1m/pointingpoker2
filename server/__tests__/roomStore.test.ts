@@ -6,6 +6,7 @@ import {
   getRoomByCode,
   addPlayerToRoom,
   removePlayerFromRoom,
+  openVoting,
   castVote,
   revealVotes,
   resetRound,
@@ -67,6 +68,11 @@ describe('createRoom', () => {
     expect(host!.isActive).toBe(true)
     expect(host!.vote).toBeNull()
     expect(host!.hasVoted).toBe(false)
+  })
+
+  it('sets votingOpen to false', () => {
+    const room = createRoom('host-1', 'Alice')
+    expect(room.votingOpen).toBe(false)
   })
 
   it('sets revealed to false', () => {
@@ -178,19 +184,51 @@ describe('removePlayerFromRoom', () => {
   })
 })
 
+// ── openVoting ────────────────────────────────────────────────────────────────
+
+describe('openVoting', () => {
+  it('sets votingOpen to true and returns true', () => {
+    const room = createRoom('host-1', 'Alice')
+    expect(openVoting(room)).toBe(true)
+    expect(room.votingOpen).toBe(true)
+  })
+
+  it('returns false if voting is already open', () => {
+    const room = createRoom('host-1', 'Alice')
+    openVoting(room)
+    expect(openVoting(room)).toBe(false)
+  })
+
+  it('returns false if votes are already revealed', () => {
+    const room = createRoom('host-1', 'Alice')
+    openVoting(room)
+    revealVotes(room)
+    expect(openVoting(room)).toBe(false)
+  })
+})
+
 // ── castVote ──────────────────────────────────────────────────────────────────
 
 describe('castVote', () => {
-  it('records a vote and returns true', () => {
+  it('records a vote and returns true when voting is open', () => {
     const room = createRoom('host-1', 'Alice')
+    openVoting(room)
     const result = castVote(room, 'host-1', '5')
     expect(result).toBe(true)
     expect(room.players.get('host-1')!.vote).toBe('5')
     expect(room.players.get('host-1')!.hasVoted).toBe(true)
   })
 
-  it('rejects a vote after reveal and returns false', () => {
+  it('rejects a vote when voting is not open and returns false', () => {
     const room = createRoom('host-1', 'Alice')
+    // votingOpen is false initially
+    const result = castVote(room, 'host-1', '3')
+    expect(result).toBe(false)
+  })
+
+  it('rejects a vote after reveal (votingOpen closes on reveal) and returns false', () => {
+    const room = createRoom('host-1', 'Alice')
+    openVoting(room)
     revealVotes(room)
     const result = castVote(room, 'host-1', '3')
     expect(result).toBe(false)
@@ -198,12 +236,14 @@ describe('castVote', () => {
 
   it('rejects a vote for an unknown player and returns false', () => {
     const room = createRoom('host-1', 'Alice')
+    openVoting(room)
     const result = castVote(room, 'unknown-player', '8')
     expect(result).toBe(false)
   })
 
-  it('allows changing a vote before reveal', () => {
+  it('allows changing a vote while voting is open', () => {
     const room = createRoom('host-1', 'Alice')
+    openVoting(room)
     castVote(room, 'host-1', '3')
     castVote(room, 'host-1', '8')
     expect(room.players.get('host-1')!.vote).toBe('8')
@@ -213,10 +253,12 @@ describe('castVote', () => {
 // ── revealVotes ───────────────────────────────────────────────────────────────
 
 describe('revealVotes', () => {
-  it('sets revealed to true', () => {
+  it('sets revealed to true and votingOpen to false', () => {
     const room = createRoom('host-1', 'Alice')
+    openVoting(room)
     revealVotes(room)
     expect(room.revealed).toBe(true)
+    expect(room.votingOpen).toBe(false)
   })
 
   it('returns a record of all player votes', () => {
@@ -224,6 +266,7 @@ describe('revealVotes', () => {
     const bob = makePlayer({ id: 'player-2', name: 'Bob' })
     addPlayerToRoom(room, bob)
 
+    openVoting(room)
     castVote(room, 'host-1', '5')
     castVote(room, 'player-2', '8')
 
@@ -237,6 +280,7 @@ describe('revealVotes', () => {
     const bob = makePlayer({ id: 'player-2', name: 'Bob' })
     addPlayerToRoom(room, bob)
 
+    openVoting(room)
     castVote(room, 'host-1', '5')
     // bob does not vote
 
@@ -248,17 +292,19 @@ describe('revealVotes', () => {
 // ── resetRound ────────────────────────────────────────────────────────────────
 
 describe('resetRound', () => {
-  it('clears all votes and sets revealed to false', () => {
+  it('clears all votes, sets revealed to false, and sets votingOpen to false', () => {
     const room = createRoom('host-1', 'Alice')
     const bob = makePlayer({ id: 'player-2', name: 'Bob' })
     addPlayerToRoom(room, bob)
 
+    openVoting(room)
     castVote(room, 'host-1', '13')
     castVote(room, 'player-2', '21')
     revealVotes(room)
     resetRound(room)
 
     expect(room.revealed).toBe(false)
+    expect(room.votingOpen).toBe(false)
     for (const player of room.players.values()) {
       expect(player.vote).toBeNull()
       expect(player.hasVoted).toBe(false)
@@ -338,10 +384,17 @@ describe('toRoomDTO', () => {
     const dto = toRoomDTO(room)
     expect(dto.id).toBe(room.id)
     expect(dto.code).toBe(room.code)
+    expect(dto.votingOpen).toBe(false)
     expect(dto.revealed).toBe(false)
     expect(dto.hostId).toBe('host-1')
     expect(Array.isArray(dto.players)).toBe(true)
     expect(dto.players).toHaveLength(1)
+  })
+
+  it('reflects votingOpen: true after openVoting', () => {
+    const room = createRoom('host-1', 'Alice')
+    openVoting(room)
+    expect(toRoomDTO(room).votingOpen).toBe(true)
   })
 
   it('sets activeCheck to null when no check is in progress', () => {

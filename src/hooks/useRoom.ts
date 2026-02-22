@@ -82,6 +82,14 @@ export function useRoom(name: string, roomId?: string, code?: string) {
             }
           }
 
+          case 'VOTING_OPENED': {
+            if (!prev.room) return prev
+            return {
+              ...prev,
+              room: { ...prev.room, votingOpen: true },
+            }
+          }
+
           case 'VOTE_CAST': {
             if (!prev.room) return prev
             return {
@@ -101,6 +109,7 @@ export function useRoom(name: string, roomId?: string, code?: string) {
               ...prev,
               room: {
                 ...prev.room,
+                votingOpen: false,
                 revealed: true,
                 players: prev.room.players.map((p) => ({
                   ...p,
@@ -116,6 +125,7 @@ export function useRoom(name: string, roomId?: string, code?: string) {
               ...prev,
               room: {
                 ...prev.room,
+                votingOpen: false,
                 revealed: false,
                 players: prev.room.players.map((p) => ({
                   ...p,
@@ -191,6 +201,11 @@ export function useRoom(name: string, roomId?: string, code?: string) {
     }
   }, [connect])
 
+  const openVoting = useCallback(
+    () => send({ type: 'OPEN_VOTING', payload: {} }),
+    [send],
+  )
+
   const vote = useCallback(
     (value: CardValue) => send({ type: 'VOTE', payload: { value } }),
     [send],
@@ -221,5 +236,5 @@ export function useRoom(name: string, roomId?: string, code?: string) {
     [send],
   )
 
-  return { state, vote, reveal, newRound, checkIn, markActive, assignHost }
+  return { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost }
 }

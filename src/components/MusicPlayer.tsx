@@ -1,10 +1,29 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 
-export function MusicPlayer() {
+interface MusicPlayerProps {
+  votingOpen: boolean
+}
+
+export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [volume, setVolume] = useState(0.4)
   const [notFound, setNotFound] = useState(false)
+
+  // Autoplay when voting opens, autopause when it closes
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || notFound) return
+
+    if (votingOpen) {
+      audio.volume = volume
+      audio.play().then(() => setPlaying(true)).catch(() => {})
+    } else {
+      audio.pause()
+      setPlaying(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [votingOpen])
 
   function toggle() {
     const audio = audioRef.current
@@ -28,7 +47,11 @@ export function MusicPlayer() {
   if (notFound) return null
 
   return (
-    <div className="flex items-center gap-3 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2">
+    <div className={`flex items-center gap-3 rounded-lg px-4 py-2 border transition-colors ${
+      playing
+        ? 'bg-indigo-950 border-indigo-700'
+        : 'bg-gray-900 border-gray-800'
+    }`}>
       <audio
         ref={audioRef}
         src="/audio/hold-music.mp3"
@@ -38,7 +61,7 @@ export function MusicPlayer() {
       <button
         type="button"
         onClick={toggle}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
           playing
             ? 'bg-indigo-600 hover:bg-indigo-500'
             : 'bg-gray-700 hover:bg-gray-600'
@@ -63,7 +86,9 @@ export function MusicPlayer() {
           </svg>
         )}
       </button>
-      <span className="text-xs text-gray-400 whitespace-nowrap">Hold music</span>
+      <span className={`text-xs whitespace-nowrap ${playing ? 'text-indigo-300' : 'text-gray-400'}`}>
+        {playing ? 'Playing…' : 'Hold music'}
+      </span>
       <input
         type="range"
         min="0"
