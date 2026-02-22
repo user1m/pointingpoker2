@@ -63,9 +63,9 @@ describe('MELODY', () => {
     }
   })
 
-  it('opens with the characteristic G4 → C5 rising-fourth motif', () => {
-    expect(MELODY[0][0]).toBe('G4')
-    expect(MELODY[1][0]).toBe('C5')
+  it('opens with the characteristic Bb4 → Eb5 rising-fourth motif', () => {
+    expect(MELODY[0][0]).toBe('Bb4')
+    expect(MELODY[1][0]).toBe('Eb5')
   })
 
   it('contains at least one REST', () => {
@@ -74,11 +74,11 @@ describe('MELODY', () => {
   })
 
   it('has three distinct sections (A, B, C) — detectable by the opening note of each)', () => {
-    // A section starts with G4, B section introduces F4, C section introduces E4
+    // A section starts with Bb4, B section opens with Ab4, C section opens with G4
     const noteNames = MELODY.map(([n]) => n)
+    expect(noteNames).toContain('Bb4')
+    expect(noteNames).toContain('Ab4')
     expect(noteNames).toContain('G4')
-    expect(noteNames).toContain('F4')
-    expect(noteNames).toContain('E4')
   })
 })
 
@@ -90,14 +90,14 @@ describe('buildNoteSequence', () => {
     expect(notes).toHaveLength(MELODY.length)
   })
 
-  it('first note is G4 (~392 Hz)', () => {
+  it('first note is Bb4 (~466 Hz)', () => {
     const notes = buildNoteSequence()
-    expect(notes[0].freq).toBeCloseTo(392.00, 1)
+    expect(notes[0].freq).toBeCloseTo(466.16, 1)
   })
 
-  it('second note is C5 (~523 Hz)', () => {
+  it('second note is Eb5 (~622 Hz)', () => {
     const notes = buildNoteSequence()
-    expect(notes[1].freq).toBeCloseTo(523.25, 1)
+    expect(notes[1].freq).toBeCloseTo(622.25, 1)
   })
 
   it('rest notes have frequency 0', () => {
@@ -116,10 +116,10 @@ describe('buildNoteSequence', () => {
     }
   })
 
-  it('default BPM is 100 — beat duration is 0.6 s', () => {
+  it('default BPM is 80 — beat duration is 0.75 s', () => {
     const notes = buildNoteSequence()
-    // MELODY[0] is ['G4', 1 beat] → 0.6 s at 100 BPM
-    expect(notes[0].duration).toBeCloseTo(0.6, 5)
+    // MELODY[0] is ['Bb4', 1 beat] → 0.75 s at 80 BPM
+    expect(notes[0].duration).toBeCloseTo(0.75, 5)
   })
 
   it('halving BPM doubles every note duration', () => {

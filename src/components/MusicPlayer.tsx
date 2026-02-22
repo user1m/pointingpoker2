@@ -40,21 +40,35 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
     if (note.freq > 0) {
       const osc = ctx.createOscillator()
       const env = ctx.createGain()
-      osc.type = 'triangle' // warmer than sine, less buzzy than square
+      osc.type = 'sine'
       osc.frequency.value = note.freq
       osc.connect(env)
       env.connect(master)
 
-      // Smooth attack/release envelope to avoid audible clicks
-      const attack = Math.min(0.03, note.duration * 0.1)
-      const release = Math.min(0.06, note.duration * 0.2)
+      // Mallet-style envelope: instant strike, exponential decay (vibraphone feel)
+      const attack = 0.005
+      const decayEnd = Math.max(attack + 0.01, note.duration * 0.9)
       env.gain.setValueAtTime(0, now)
       env.gain.linearRampToValueAtTime(1, now + attack)
-      env.gain.setValueAtTime(1, now + note.duration - release)
-      env.gain.linearRampToValueAtTime(0, now + note.duration)
+      env.gain.exponentialRampToValueAtTime(0.001, now + decayEnd)
+      env.gain.setValueAtTime(0, now + note.duration)
 
       osc.start(now)
       osc.stop(now + note.duration)
+
+      // 4th harmonic adds metallic warmth (overtone typical of mallet instruments)
+      const harm = ctx.createOscillator()
+      const harmGain = ctx.createGain()
+      harm.type = 'sine'
+      harm.frequency.value = note.freq * 4
+      harm.connect(harmGain)
+      harmGain.connect(master)
+      harmGain.gain.setValueAtTime(0, now)
+      harmGain.gain.linearRampToValueAtTime(0.12, now + attack)
+      harmGain.gain.exponentialRampToValueAtTime(0.001, now + Math.max(attack + 0.01, decayEnd * 0.4))
+      harmGain.gain.setValueAtTime(0, now + note.duration)
+      harm.start(now)
+      harm.stop(now + note.duration)
     }
 
     timerRef.current = setTimeout(
