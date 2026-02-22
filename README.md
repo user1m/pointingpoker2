@@ -113,5 +113,5 @@ docker run -p 3000:3000 pointingpoker
 
 - **State**: rooms live in a single in-memory `Map` in the Nitro server process. Railway runs one instance so this is fine. Swap for Redis if horizontal scaling is needed.
 - **Votes hidden until reveal**: `VOTE_CAST` broadcasts only that a player voted — not the value. Values are sent in `VOTES_REVEALED`.
-- **Attention checks**: fire at a random interval (1–5 min), skip the host. Non-responders within the 30-second window are marked inactive and visible to all players.
+- **Attention checks**: fire at a random interval (30–60 s), skip the host. Non-responders within the 30-second window are marked inactive and visible to all players.
 - **Audio source detection**: a single `HEAD /audio/hold-music.mp3` request on component mount determines which audio path to use; no configuration required.

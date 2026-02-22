@@ -444,7 +444,7 @@ describe('ASSIGN_HOST', () => {
 
 describe('CHECK_IN', () => {
   it('records the response so the player is not marked inactive', () => {
-    // Pin random so the check delay is exactly CHECK_MIN_MS (60 000 ms),
+    // Pin random so the check delay is exactly CHECK_MIN_MS (30 000 ms),
     // ensuring the resolve timer cannot fire inside the first advanceTimersByTime call.
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
@@ -458,8 +458,8 @@ describe('CHECK_IN', () => {
     send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
     const roomId = (bob.lastMessage()!.payload.room as { id: string }).id
 
-    // Fire attention check (delay pinned to 60 000 ms)
-    vi.advanceTimersByTime(60_001)
+    // Fire attention check (delay pinned to 30 000 ms)
+    vi.advanceTimersByTime(30_001)
 
     // Bob checks in before the 30 s window closes
     send(bob, { type: 'CHECK_IN', payload: {} })
@@ -493,7 +493,7 @@ describe('MARK_ACTIVE', () => {
     const roomId = (bob.lastMessage()!.payload.room as { id: string }).id
 
     // Flag bob as inactive via attention check
-    vi.advanceTimersByTime(300_001)
+    vi.advanceTimersByTime(60_001)
     vi.advanceTimersByTime(30_001)
     expect(getRoomById(roomId)!.players.get('bob')!.isActive).toBe(false)
 

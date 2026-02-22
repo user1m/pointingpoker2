@@ -474,8 +474,8 @@ describe('attention check', () => {
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
     scheduleAttentionCheck(room.id)
 
-    // Advance past the max possible delay (5 min)
-    vi.advanceTimersByTime(300_001)
+    // Advance past the max possible delay (60 s)
+    vi.advanceTimersByTime(60_001)
 
     const nonHostMsgs = msgs['player-2'].map((m) => JSON.parse(m))
     expect(nonHostMsgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
@@ -490,7 +490,7 @@ describe('attention check', () => {
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(300_001)
+    vi.advanceTimersByTime(60_001)
 
     const parsed = hostMsgs.map((m) => JSON.parse(m))
     expect(parsed.some((m) => m.type === 'ATTENTION_CHECK')).toBe(false)
@@ -505,7 +505,7 @@ describe('attention check', () => {
     scheduleAttentionCheck(room.id)
 
     // Fire the attention check
-    vi.advanceTimersByTime(300_001)
+    vi.advanceTimersByTime(60_001)
     // Let the 30s window expire without a CHECK_IN
     vi.advanceTimersByTime(30_001)
 
@@ -513,7 +513,7 @@ describe('attention check', () => {
   })
 
   it('does NOT mark players who responded as inactive', () => {
-    // Pin random so the check delay is exactly CHECK_MIN_MS (60 000 ms),
+    // Pin random so the check delay is exactly CHECK_MIN_MS (30 000 ms),
     // ensuring the resolve timer cannot fire inside the first advanceTimersByTime call.
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
@@ -524,8 +524,8 @@ describe('attention check', () => {
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
     scheduleAttentionCheck(room.id)
 
-    // Fire the attention check (delay is pinned to 60 000 ms)
-    vi.advanceTimersByTime(60_001)
+    // Fire the attention check (delay is pinned to 30 000 ms)
+    vi.advanceTimersByTime(30_001)
     // Player responds before the 30 s window closes
     handleCheckIn(room, 'player-2')
     // Window expires
@@ -543,7 +543,7 @@ describe('attention check', () => {
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(300_001)
+    vi.advanceTimersByTime(60_001)
     vi.advanceTimersByTime(30_001)
 
     const parsed = broadcastedMsgs.map((m) => JSON.parse(m))
@@ -562,7 +562,7 @@ describe('attention check', () => {
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(300_001) // fire check
+    vi.advanceTimersByTime(60_001) // fire check
     vi.advanceTimersByTime(30_001) // resolve check
 
     // After resolution a new timer must have been scheduled
@@ -576,7 +576,7 @@ describe('attention check', () => {
     scheduleAttentionCheck(room.id)
 
     // No non-host players — check fires but immediately reschedules
-    vi.advanceTimersByTime(300_001)
+    vi.advanceTimersByTime(60_001)
 
     expect(room.activeCheck).toBeNull()
     expect(room.attentionCheckTimer).not.toBeNull()
