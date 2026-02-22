@@ -1,4 +1,5 @@
 import type { PlayerDTO, CardValue } from '#/lib/types'
+import { nearestFib } from '#/lib/votingUtils'
 import { PokerCard } from './PokerCard'
 
 const NUMERIC_VALUES: Record<string, number> = {
@@ -21,10 +22,12 @@ export function VoteResults({ players }: Props) {
     .map((v) => NUMERIC_VALUES[v])
     .filter((n): n is number => n !== undefined)
 
-  const average =
+  const rawAverage =
     numericVotes.length > 0
-      ? (numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length).toFixed(1)
+      ? numericVotes.reduce((a, b) => a + b, 0) / numericVotes.length
       : null
+
+  const suggestion = rawAverage !== null ? nearestFib(rawAverage) : null
 
   const allSame = votes.length > 1 && new Set(votes).size === 1
 
@@ -33,10 +36,19 @@ export function VoteResults({ players }: Props) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-white">Results</h2>
         <div className="flex items-center gap-4">
-          {average !== null && (
-            <div className="text-center">
-              <div className="text-2xl font-bold text-indigo-400">{average}</div>
-              <div className="text-xs text-gray-500">average</div>
+          {rawAverage !== null && (
+            <div className="flex items-center gap-3">
+              <div className="text-center">
+                <div className="text-xl font-medium text-indigo-400">
+                  {rawAverage.toFixed(1)}
+                </div>
+                <div className="text-xs text-gray-500">avg</div>
+              </div>
+              <div className="text-gray-600">→</div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{suggestion}</div>
+                <div className="text-xs text-gray-500">suggested</div>
+              </div>
             </div>
           )}
           {allSame && (
