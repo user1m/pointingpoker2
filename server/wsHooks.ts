@@ -8,6 +8,7 @@ import {
   getRoomByCode,
   addPlayerToRoom,
   removePlayerFromRoom,
+  openVoting,
   castVote,
   revealVotes,
   resetRound,
@@ -104,6 +105,26 @@ export const wsHooks = {
           payload: { player: toPlayerDTO(player, room.revealed) },
         }, playerId)
 
+        break
+      }
+
+      case 'OPEN_VOTING': {
+        const roomId = peerRooms.get(playerId)
+        if (!roomId) return
+        const room = getRoomById(roomId)
+        if (!room) return
+
+        if (room.hostId !== playerId) {
+          sendTo(playerId, { type: 'ERROR', payload: { message: 'Only the host can open voting' } })
+          return
+        }
+
+        if (!openVoting(room)) {
+          sendTo(playerId, { type: 'ERROR', payload: { message: 'Cannot open voting right now' } })
+          return
+        }
+
+        broadcastToRoom(roomId, { type: 'VOTING_OPENED', payload: {} })
         break
       }
 

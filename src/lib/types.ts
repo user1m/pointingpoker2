@@ -13,6 +13,7 @@ export interface Room {
   id: string
   code: string
   players: Map<string, Player>
+  votingOpen: boolean
   revealed: boolean
   hostId: string
   attentionCheckTimer: ReturnType<typeof setTimeout> | null
@@ -36,6 +37,7 @@ export interface RoomDTO {
   id: string
   code: string
   players: PlayerDTO[]
+  votingOpen: boolean
   revealed: boolean
   hostId: string
   activeCheck: {
@@ -47,6 +49,7 @@ export interface RoomDTO {
 
 export type ClientMessage =
   | { type: 'JOIN'; payload: { roomId?: string; code?: string; name: string } }
+  | { type: 'OPEN_VOTING'; payload: Record<string, never> }
   | { type: 'VOTE'; payload: { value: CardValue } }
   | { type: 'REVEAL'; payload: Record<string, never> }
   | { type: 'NEW_ROUND'; payload: Record<string, never> }
@@ -60,6 +63,7 @@ export type ServerMessage =
   | { type: 'ROOM_STATE'; payload: { room: RoomDTO; playerId: string } }
   | { type: 'PLAYER_JOINED'; payload: { player: PlayerDTO } }
   | { type: 'PLAYER_LEFT'; payload: { playerId: string } }
+  | { type: 'VOTING_OPENED'; payload: Record<string, never> }
   | { type: 'VOTE_CAST'; payload: { playerId: string } }
   | { type: 'VOTES_REVEALED'; payload: { votes: Record<string, CardValue | null> } }
   | { type: 'ROUND_RESET'; payload: Record<string, never> }

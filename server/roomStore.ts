@@ -41,6 +41,7 @@ export function toRoomDTO(room: Room): RoomDTO {
     id: room.id,
     code: room.code,
     players: [...room.players.values()].map((p) => toPlayerDTO(p, room.revealed)),
+    votingOpen: room.votingOpen,
     revealed: room.revealed,
     hostId: room.hostId,
     activeCheck: room.activeCheck ? { deadline: room.activeCheck.deadline } : null,
@@ -82,6 +83,7 @@ export function createRoom(hostId: string, hostName: string): Room {
     id: roomId,
     code,
     players: new Map([[hostId, host]]),
+    votingOpen: false,
     revealed: false,
     hostId,
     attentionCheckTimer: null,
@@ -147,15 +149,22 @@ export function removePlayerFromRoom(roomId: string, playerId: string): { roomCl
   return { roomClosed: false }
 }
 
+export function openVoting(room: Room): boolean {
+  if (room.votingOpen || room.revealed) return false
+  room.votingOpen = true
+  return true
+}
+
 export function castVote(room: Room, playerId: string, value: CardValue): boolean {
   const player = room.players.get(playerId)
-  if (!player || room.revealed) return false
+  if (!player || !room.votingOpen) return false
   player.vote = value
   player.hasVoted = true
   return true
 }
 
 export function revealVotes(room: Room): Record<string, CardValue | null> {
+  room.votingOpen = false
   room.revealed = true
   const votes: Record<string, CardValue | null> = {}
   for (const [id, player] of room.players) {
@@ -165,6 +174,7 @@ export function revealVotes(room: Room): Record<string, CardValue | null> {
 }
 
 export function resetRound(room: Room) {
+  room.votingOpen = false
   room.revealed = false
   for (const player of room.players.values()) {
     player.vote = null

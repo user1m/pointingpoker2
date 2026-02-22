@@ -193,6 +193,55 @@ describe('JOIN — join by roomId', () => {
   })
 })
 
+// ── OPEN_VOTING ───────────────────────────────────────────────────────────────
+
+describe('OPEN_VOTING', () => {
+  function setup() {
+    const alice = new FakePeer('alice') // host
+    const bob = new FakePeer('bob')
+    openPeer(alice)
+    openPeer(bob)
+
+    send(alice, { type: 'JOIN', payload: { name: 'Alice' } })
+    const roomCode = (alice.lastMessage()!.payload.room as { code: string }).code
+    send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
+    alice.clear()
+    bob.clear()
+
+    return { alice, bob }
+  }
+
+  it('broadcasts VOTING_OPENED to all room members', () => {
+    const { alice, bob } = setup()
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    expect(alice.messagesOfType('VOTING_OPENED')).toHaveLength(1)
+    expect(bob.messagesOfType('VOTING_OPENED')).toHaveLength(1)
+  })
+
+  it('sends ERROR to non-host who tries to open voting', () => {
+    const { bob } = setup()
+    send(bob, { type: 'OPEN_VOTING', payload: {} })
+    expect(bob.lastMessage()?.type).toBe('ERROR')
+  })
+
+  it('sends ERROR if voting is already open', () => {
+    const { alice } = setup()
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    alice.clear()
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    expect(alice.lastMessage()?.type).toBe('ERROR')
+  })
+
+  it('sends ERROR if votes are already revealed', () => {
+    const { alice } = setup()
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    send(alice, { type: 'REVEAL', payload: {} })
+    alice.clear()
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    expect(alice.lastMessage()?.type).toBe('ERROR')
+  })
+})
+
 // ── VOTE ──────────────────────────────────────────────────────────────────────
 
 describe('VOTE', () => {
@@ -206,6 +255,8 @@ describe('VOTE', () => {
     const roomCode = (alice.lastMessage()!.payload.room as { code: string }).code
 
     send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
+    // Open voting so players can cast votes
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
     alice.clear()
     bob.clear()
 
@@ -229,13 +280,24 @@ describe('VOTE', () => {
     expect((castMsg.payload as Record<string, unknown>).value).toBeUndefined()
   })
 
-  it('rejects a vote after reveal and sends ERROR to the voter', () => {
+  it('rejects a vote after reveal (votingOpen closes) and sends ERROR', () => {
     const { alice } = setup()
     send(alice, { type: 'REVEAL', payload: {} })
     alice.clear()
 
     send(alice, { type: 'VOTE', payload: { value: '3' } })
     expect(alice.lastMessage()?.type).toBe('ERROR')
+  })
+
+  it('rejects a vote when voting has not been opened and sends ERROR', () => {
+    // Create a fresh room without opening voting
+    const carol = new FakePeer('carol')
+    openPeer(carol)
+    send(carol, { type: 'JOIN', payload: { name: 'Carol' } })
+    carol.clear()
+
+    send(carol, { type: 'VOTE', payload: { value: '5' } })
+    expect(carol.lastMessage()?.type).toBe('ERROR')
   })
 
   it('silently ignores VOTE if the peer has not joined a room', () => {
@@ -258,6 +320,8 @@ describe('REVEAL', () => {
     send(alice, { type: 'JOIN', payload: { name: 'Alice' } })
     const roomCode = (alice.lastMessage()!.payload.room as { code: string }).code
     send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
+    // Open voting so players can vote before reveal
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
     alice.clear()
     bob.clear()
 
@@ -313,12 +377,17 @@ describe('NEW_ROUND', () => {
     expect(bob.messagesOfType('ROUND_RESET')).toHaveLength(1)
   })
 
-  it('clears votes so players can vote again', () => {
+  it('clears votes so players can vote again after re-opening voting', () => {
     const { alice } = setup()
+    // Open voting, cast a vote, then start a new round
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
     send(alice, { type: 'VOTE', payload: { value: '3' } })
     send(alice, { type: 'NEW_ROUND', payload: {} })
     alice.clear()
 
+    // Must open voting again before votes are accepted
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    alice.clear()
     send(alice, { type: 'VOTE', payload: { value: '8' } })
     expect(alice.messagesOfType('VOTE_CAST')).toHaveLength(1)
   })
