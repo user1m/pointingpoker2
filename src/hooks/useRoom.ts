@@ -189,7 +189,14 @@ export function useRoom(name: string, roomId?: string, code?: string) {
 
     ws.onclose = () => {
       setState((s) => ({ ...s, connected: false }))
-      reconnectTimer.current = setTimeout(connect, 3000)
+      // Only reconnect if this socket is still the active one. In React
+      // StrictMode the effect runs twice; the first socket is closed by the
+      // cleanup before it connects, and a stale onclose would otherwise
+      // schedule a spurious reconnect that causes the player to join a second
+      // time with a new peer ID — producing a duplicate entry in the room.
+      if (wsRef.current === ws) {
+        reconnectTimer.current = setTimeout(connect, 3000)
+      }
     }
   }, [name, roomId, code])
 
@@ -197,7 +204,11 @@ export function useRoom(name: string, roomId?: string, code?: string) {
     connect()
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
-      wsRef.current?.close()
+      // Null the ref before closing so the onclose handler above does not
+      // schedule another reconnect after an intentional teardown/remount.
+      const closing = wsRef.current
+      wsRef.current = null
+      closing?.close()
     }
   }, [connect])
 
