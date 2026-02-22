@@ -21,12 +21,25 @@ export function useRoom(name: string, roomId?: string, code?: string) {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Keep roomId and code in refs so connect() always sends the latest values
+  // without needing them as useCallback deps. This prevents the WebSocket from
+  // being torn down and rebuilt when the URL updates from /room/new → /room/[id]
+  // after the first JOIN succeeds.
+  const roomIdRef = useRef(roomId)
+  const codeRef = useRef(code)
+  useEffect(() => {
+    roomIdRef.current = roomId
+    codeRef.current = code
+  }, [roomId, code])
+
   const send = useCallback((msg: ClientMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg))
     }
   }, [])
 
+  // connect depends only on `name`. roomId/code are read from refs so a URL
+  // change (new → actual room ID) never triggers a reconnect.
   const connect = useCallback(() => {
     if (!name) return
 
@@ -39,7 +52,7 @@ export function useRoom(name: string, roomId?: string, code?: string) {
       ws.send(
         JSON.stringify({
           type: 'JOIN',
-          payload: { name, roomId, code },
+          payload: { name, roomId: roomIdRef.current, code: codeRef.current },
         } satisfies ClientMessage),
       )
     }
@@ -198,7 +211,7 @@ export function useRoom(name: string, roomId?: string, code?: string) {
         reconnectTimer.current = setTimeout(connect, 3000)
       }
     }
-  }, [name, roomId, code])
+  }, [name]) // roomId/code intentionally omitted — read from refs above
 
   useEffect(() => {
     connect()
