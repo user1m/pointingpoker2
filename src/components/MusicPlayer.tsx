@@ -5,16 +5,55 @@ interface MusicPlayerProps {
   votingOpen: boolean
 }
 
+type AudioSource = 'detecting' | 'file' | 'synth'
+
 export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
   const [playing, setPlaying] = useState(false)
   const [volume, setVolume] = useState(0.3)
 
-  // All audio state lives in refs so async callbacks never close over stale values
+  // Mirror audioSource in a ref so async callbacks never close over stale state
+  const [audioSource, _setAudioSource] = useState<AudioSource>('detecting')
+  const audioSourceRef = useRef<AudioSource>('detecting')
+  function setAudioSource(s: AudioSource) {
+    audioSourceRef.current = s
+    _setAudioSource(s)
+  }
+
+  // ── File-based audio ────────────────────────────────────────────────────────
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // ── Synth audio state ───────────────────────────────────────────────────────
   const ctxRef = useRef<AudioContext | null>(null)
   const masterGainRef = useRef<GainNode | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeRef = useRef(false)
   const volumeRef = useRef(0.3)
+
+  // Probe whether the hold-music file is present; choose source accordingly
+  useEffect(() => {
+    fetch('/audio/hold-music.mp3', { method: 'HEAD' })
+      .then(r => setAudioSource(r.ok ? 'file' : 'synth'))
+      .catch(() => setAudioSource('synth'))
+  }, [])
+
+  // Create the HTMLAudioElement once we know the file is available
+  // NOTE: defined before the votingOpen effect so React runs it first when
+  // audioSource changes, ensuring audioRef.current is populated before playback starts.
+  useEffect(() => {
+    if (audioSource !== 'file') return
+    const audio = new Audio('/audio/hold-music.mp3')
+    audio.loop = true
+    audio.volume = volumeRef.current
+    // If the file turns out to be unplayable (wrong format, corrupt, etc.) fall back to synth
+    audio.addEventListener('error', () => setAudioSource('synth'), { once: true })
+    audioRef.current = audio
+    return () => {
+      audio.pause()
+      audioRef.current = null
+    }
+  }, [audioSource])
+
+  // ── Synth helpers ────────────────────────────────────────────────────────────
 
   function getCtx(): AudioContext | null {
     if (typeof window === 'undefined') return null
@@ -77,12 +116,22 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
     )
   }
 
+  // ── Playback control (shared interface for both sources) ─────────────────────
+
   function startPlayback() {
+    if (audioSourceRef.current === 'file') {
+      const audio = audioRef.current
+      if (!audio) return
+      void audio.play()
+      setPlaying(true)
+      return
+    }
+
+    // Synth path (also used when still 'detecting' so there's no dead silence)
     const ctx = getCtx()
     if (!ctx) return
     if (ctx.state === 'suspended') void ctx.resume()
 
-    // Cancel any in-flight gain fade from a previous stop and restore volume
     const master = masterGainRef.current
     if (master) {
       master.gain.cancelScheduledValues(ctx.currentTime)
@@ -95,6 +144,17 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
   }
 
   function stopPlayback() {
+    if (audioSourceRef.current === 'file') {
+      const audio = audioRef.current
+      if (audio) {
+        audio.pause()
+        audio.currentTime = 0
+      }
+      setPlaying(false)
+      return
+    }
+
+    // Synth path
     activeRef.current = false
     if (timerRef.current) {
       clearTimeout(timerRef.current)
@@ -107,7 +167,6 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
       const now = ctx.currentTime
       master.gain.setValueAtTime(master.gain.value, now)
       master.gain.linearRampToValueAtTime(0, now + 0.08)
-      // Restore gain value after the fade so the next startPlayback sounds full
       setTimeout(() => {
         if (!activeRef.current && master) master.gain.value = volumeRef.current
       }, 120)
@@ -115,8 +174,9 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
     setPlaying(false)
   }
 
-  // Autoplay when voting opens, autopause when it closes
+  // Autoplay when voting opens; wait until source is resolved before starting
   useEffect(() => {
+    if (audioSource === 'detecting') return
     if (votingOpen) {
       startPlayback()
     } else {
@@ -127,7 +187,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [votingOpen])
+  }, [votingOpen, audioSource])
 
   // Full cleanup on unmount
   useEffect(() => {
@@ -135,6 +195,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
       activeRef.current = false
       if (timerRef.current) clearTimeout(timerRef.current)
       ctxRef.current?.close()
+      audioRef.current?.pause()
     }
   }, [])
 
@@ -147,9 +208,12 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
     const v = parseFloat(e.target.value)
     setVolume(v)
     volumeRef.current = v
-    // Apply live while playing
-    if (masterGainRef.current && activeRef.current) {
-      masterGainRef.current.gain.value = v
+    if (audioSourceRef.current === 'file') {
+      if (audioRef.current) audioRef.current.volume = v
+    } else {
+      if (masterGainRef.current && activeRef.current) {
+        masterGainRef.current.gain.value = v
+      }
     }
   }
 
