@@ -216,13 +216,16 @@ function fireAttentionCheck(roomId: string) {
   const room = rooms.get(roomId)
   if (!room) return
 
-  // When voting is open, only check players who haven't voted yet — they have
-  // already demonstrated presence by casting their vote.
-  const targetIds = [...room.players.keys()].filter((id) => {
-    if (id === room.hostId) return false
-    if (room.votingOpen) return !room.players.get(id)!.hasVoted
-    return true
-  })
+  // Attention checks only apply during an open voting session, and only to
+  // players who haven't voted yet (voted players have already shown presence).
+  if (!room.votingOpen) {
+    scheduleAttentionCheck(roomId)
+    return
+  }
+
+  const targetIds = [...room.players.keys()].filter(
+    (id) => id !== room.hostId && !room.players.get(id)!.hasVoted,
+  )
 
   if (targetIds.length === 0) {
     scheduleAttentionCheck(roomId)

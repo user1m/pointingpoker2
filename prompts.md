@@ -65,3 +65,5 @@ A chronological record of all user inputs for this project.
 30. Attention checks should only be for those who haven't voted yet during the open voting session. lets create a branch and add this feature.
 
 31. merge pr then work on a feature branch to make the app responsive on mobile devices
+
+32. looks like attention checks are happening outside voting

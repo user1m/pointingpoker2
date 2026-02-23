@@ -492,6 +492,9 @@ describe('MARK_ACTIVE', () => {
     send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
     const roomId = (bob.lastMessage()!.payload.room as { id: string }).id
 
+    // Open voting so the attention check targets bob (checks only fire during voting)
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+
     // Flag bob as inactive via attention check
     vi.advanceTimersByTime(60_001)
     vi.advanceTimersByTime(30_001)
