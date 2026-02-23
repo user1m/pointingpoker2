@@ -61,3 +61,5 @@ A chronological record of all user inputs for this project.
 28. create a prompts.md file and add all of my prompts into that doc. going forward record all my inputs there
 
 29. ok so the app works locally but on railway I get stuck in the 'connecting...' screen when trying to create a room. did we miss anything is the railway setup?
+
+30. Attention checks should only be for those who haven't voted yet during the open voting session. lets create a branch and add this feature.

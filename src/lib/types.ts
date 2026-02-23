@@ -20,6 +20,7 @@ export interface Room {
   activeCheck: {
     deadline: number
     respondedIds: Set<string>
+    targetIds: Set<string>
   } | null
 }
 

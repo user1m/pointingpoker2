@@ -216,17 +216,24 @@ function fireAttentionCheck(roomId: string) {
   const room = rooms.get(roomId)
   if (!room) return
 
-  const nonHostIds = [...room.players.keys()].filter((id) => id !== room.hostId)
-  if (nonHostIds.length === 0) {
+  // When voting is open, only check players who haven't voted yet — they have
+  // already demonstrated presence by casting their vote.
+  const targetIds = [...room.players.keys()].filter((id) => {
+    if (id === room.hostId) return false
+    if (room.votingOpen) return !room.players.get(id)!.hasVoted
+    return true
+  })
+
+  if (targetIds.length === 0) {
     scheduleAttentionCheck(roomId)
     return
   }
 
   const deadline = Date.now() + CHECK_WINDOW_MS
-  room.activeCheck = { deadline, respondedIds: new Set() }
+  room.activeCheck = { deadline, respondedIds: new Set(), targetIds: new Set(targetIds) }
 
   const msg: ServerMessage = { type: 'ATTENTION_CHECK', payload: { deadline } }
-  for (const id of nonHostIds) {
+  for (const id of targetIds) {
     sendTo(id, msg)
   }
 
@@ -239,11 +246,12 @@ function resolveAttentionCheck(roomId: string) {
   const room = rooms.get(roomId)
   if (!room || !room.activeCheck) return
 
-  const { respondedIds } = room.activeCheck
+  const { respondedIds, targetIds } = room.activeCheck
   room.activeCheck = null
 
-  for (const [id, player] of room.players) {
-    if (id === room.hostId) continue
+  for (const id of targetIds) {
+    const player = room.players.get(id)
+    if (!player) continue
     if (!respondedIds.has(id)) {
       player.isActive = false
       broadcastToRoom(roomId, {
