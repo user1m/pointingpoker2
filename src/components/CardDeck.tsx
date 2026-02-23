@@ -11,7 +11,7 @@ interface Props {
 
 export function CardDeck({ selectedValue, revealed, onVote }: Props) {
   return (
-    <div className="flex flex-wrap justify-center gap-3">
+    <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
       {CARD_VALUES.map((value) => (
         <PokerCard
           key={value}

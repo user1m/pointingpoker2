@@ -11,9 +11,9 @@ interface Props {
 
 export function PokerCard({ value, selected, revealed, disabled, onClick, size = 'md' }: Props) {
   const sizeClasses = {
-    sm: 'w-10 h-14 text-sm',
-    md: 'w-14 h-20 text-base',
-    lg: 'w-16 h-24 text-lg',
+    sm: 'w-9 h-12 text-xs sm:w-10 sm:h-14 sm:text-sm',
+    md: 'w-11 h-16 text-sm sm:w-14 sm:h-20 sm:text-base',
+    lg: 'w-12 h-16 text-base sm:w-16 sm:h-24 sm:text-lg',
   }
 
   return (

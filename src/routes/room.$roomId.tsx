@@ -118,9 +118,9 @@ function RoomPage() {
       <div className="min-h-screen flex flex-col">
         {/* Header */}
         <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-bold text-white">Pointing Poker</h1>
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <h1 className="text-base sm:text-lg font-bold text-white">Pointing Poker</h1>
               <span className="px-2 py-0.5 bg-gray-800 rounded text-xs font-mono text-gray-300 border border-gray-700">
                 {room.code}
               </span>
@@ -135,22 +135,22 @@ function RoomPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
               {/* Music player — host only */}
               {isHost && <MusicPlayer votingOpen={votingOpen} />}
               <button
                 type="button"
                 onClick={() => void copyLink()}
-                className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700 rounded-lg transition-colors"
+                className="px-2 sm:px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white border border-gray-700 rounded-lg transition-colors whitespace-nowrap"
               >
-                {copied ? 'Copied!' : 'Copy invite link'}
+                {copied ? 'Copied!' : <><span className="hidden sm:inline">Copy invite link</span><span className="sm:hidden">Invite</span></>}
               </button>
             </div>
           </div>
         </header>
 
         {/* Main */}
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        <main className="flex-1 max-w-6xl mx-auto w-full px-3 sm:px-4 py-4 sm:py-8">
           <div className="flex gap-6 flex-col lg:flex-row">
             {/* Left: cards + results */}
             <div className="flex-1 space-y-6">
@@ -174,8 +174,8 @@ function RoomPage() {
               {revealed ? (
                 <VoteResults players={room.players} />
               ) : votingOpen ? (
-                <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-                  <div className="flex items-center justify-between mb-5">
+                <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 sm:p-6">
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
                     <h2 className="text-lg font-semibold text-white">Cast your vote</h2>
                     {allVoted && (
                       <span className="text-xs text-green-400 bg-green-900/40 border border-green-800 px-2 py-0.5 rounded-full">
@@ -191,7 +191,7 @@ function RoomPage() {
                 </div>
               ) : (
                 // Lobby — waiting for host to open voting
-                <div className="bg-gray-900 rounded-xl border border-gray-800 p-10 flex flex-col items-center justify-center gap-3 text-center">
+                <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 sm:p-10 flex flex-col items-center justify-center gap-3 text-center">
                   {isHost ? (
                     <>
                       <p className="text-gray-400 text-sm">
