@@ -440,6 +440,39 @@ describe('ASSIGN_HOST', () => {
   })
 })
 
+// ── OPEN_VOTING grace period ───────────────────────────────────────────────────
+
+describe('OPEN_VOTING attention check grace period', () => {
+  it('does not fire attention check within 10s of voting opening even if timer was about to expire', () => {
+    // Pin random to 0 so delay = CHECK_MIN_MS (10 000 ms)
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    const alice = new FakePeer('alice')
+    const bob = new FakePeer('bob')
+    openPeer(alice)
+    openPeer(bob)
+
+    send(alice, { type: 'JOIN', payload: { name: 'Alice' } })
+    const roomCode = (alice.lastMessage()!.payload.room as { code: string }).code
+    send(bob, { type: 'JOIN', payload: { name: 'Bob', code: roomCode } })
+
+    // Advance 9 999 ms — the original timer is 1 ms away from firing
+    vi.advanceTimersByTime(9_999)
+
+    // Open voting — this resets the timer to a fresh 10 000 ms
+    send(alice, { type: 'OPEN_VOTING', payload: {} })
+    bob.clear()
+
+    // 9 999 ms more — if the timer hadn't been reset the check would have fired by now
+    vi.advanceTimersByTime(9_999)
+    expect(bob.messagesOfType('ATTENTION_CHECK')).toHaveLength(0)
+
+    // 2 ms more crosses the 10 000 ms reset threshold — check fires now
+    vi.advanceTimersByTime(2)
+    expect(bob.messagesOfType('ATTENTION_CHECK')).toHaveLength(1)
+  })
+})
+
 // ── CHECK_IN ──────────────────────────────────────────────────────────────────
 
 describe('CHECK_IN', () => {

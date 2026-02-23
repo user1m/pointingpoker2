@@ -68,3 +68,4 @@ A chronological record of all user inputs for this project.
 
 32. looks like attention checks are happening outside voting
 33. update attention checks timeout to be a random 10-15s and duration to be 15s from 30s
+34. ensure that the attention check waits at least 10s after voting is open before kicking off

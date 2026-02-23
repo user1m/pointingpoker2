@@ -125,6 +125,7 @@ export const wsHooks = {
         }
 
         broadcastToRoom(roomId, { type: 'VOTING_OPENED', payload: {} })
+        scheduleAttentionCheck(roomId) // reset timer — guarantee ≥10s grace period
         break
       }
 
