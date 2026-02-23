@@ -195,9 +195,9 @@ export function assignHost(room: Room, currentHostId: string, newHostId: string)
 
 // ── Attention check logic ─────────────────────────────────────────────────────
 
-const CHECK_MIN_MS = 30_000
-const CHECK_MAX_MS = 60_000
-const CHECK_WINDOW_MS = 30_000
+const CHECK_MIN_MS = 10_000
+const CHECK_MAX_MS = 15_000
+const CHECK_WINDOW_MS = 15_000
 
 function randomDelay(): number {
   return CHECK_MIN_MS + Math.random() * (CHECK_MAX_MS - CHECK_MIN_MS)
