@@ -581,6 +581,89 @@ describe('attention check', () => {
     expect(room.activeCheck).toBeNull()
     expect(room.attentionCheckTimer).not.toBeNull()
   })
+
+  it('sends ATTENTION_CHECK only to players who have NOT voted when voting is open', () => {
+    const msgs: Record<string, string[]> = { 'host-1': [], 'player-2': [], 'player-3': [] }
+    registerPeer('host-1', { send: (d) => msgs['host-1'].push(d) })
+    registerPeer('player-2', { send: (d) => msgs['player-2'].push(d) })
+    registerPeer('player-3', { send: (d) => msgs['player-3'].push(d) })
+
+    const room = createRoom('host-1', 'Alice')
+    addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    addPlayerToRoom(room, makePlayer({ id: 'player-3', name: 'Carol' }))
+
+    openVoting(room)
+    castVote(room, 'player-2', '5') // player-2 has voted
+    // player-3 has NOT voted
+
+    scheduleAttentionCheck(room.id)
+    vi.advanceTimersByTime(60_001)
+
+    const p2Msgs = msgs['player-2'].map((m) => JSON.parse(m))
+    const p3Msgs = msgs['player-3'].map((m) => JSON.parse(m))
+
+    expect(p2Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(false)
+    expect(p3Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
+  })
+
+  it('does NOT mark a player who voted as inactive when they ignore the check', () => {
+    registerPeer('host-1', { send: () => {} })
+    registerPeer('player-2', { send: () => {} })
+    registerPeer('player-3', { send: () => {} })
+
+    const room = createRoom('host-1', 'Alice')
+    addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    addPlayerToRoom(room, makePlayer({ id: 'player-3', name: 'Carol' }))
+
+    openVoting(room)
+    castVote(room, 'player-2', '5') // player-2 voted — should be exempt
+    // player-3 has NOT voted
+
+    scheduleAttentionCheck(room.id)
+    vi.advanceTimersByTime(60_001) // fire check
+    vi.advanceTimersByTime(30_001) // resolve without any CHECK_IN
+
+    expect(room.players.get('player-2')!.isActive).toBe(true)  // voted — never targeted
+    expect(room.players.get('player-3')!.isActive).toBe(false) // not voted — was targeted
+  })
+
+  it('skips firing and reschedules when voting is open but all non-host players have voted', () => {
+    registerPeer('host-1', { send: () => {} })
+    registerPeer('player-2', { send: () => {} })
+
+    const room = createRoom('host-1', 'Alice')
+    addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+
+    openVoting(room)
+    castVote(room, 'player-2', '8') // everyone has voted
+
+    scheduleAttentionCheck(room.id)
+    vi.advanceTimersByTime(60_001)
+
+    expect(room.activeCheck).toBeNull()
+    expect(room.attentionCheckTimer).not.toBeNull()
+  })
+
+  it('sends ATTENTION_CHECK to all non-host players when voting is NOT open', () => {
+    const msgs: Record<string, string[]> = { 'host-1': [], 'player-2': [], 'player-3': [] }
+    registerPeer('host-1', { send: (d) => msgs['host-1'].push(d) })
+    registerPeer('player-2', { send: (d) => msgs['player-2'].push(d) })
+    registerPeer('player-3', { send: (d) => msgs['player-3'].push(d) })
+
+    const room = createRoom('host-1', 'Alice')
+    addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    addPlayerToRoom(room, makePlayer({ id: 'player-3', name: 'Carol' }))
+    // votingOpen is false — no filter applied
+
+    scheduleAttentionCheck(room.id)
+    vi.advanceTimersByTime(60_001)
+
+    const p2Msgs = msgs['player-2'].map((m) => JSON.parse(m))
+    const p3Msgs = msgs['player-3'].map((m) => JSON.parse(m))
+
+    expect(p2Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
+    expect(p3Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
+  })
 })
 
 // ── handleCheckIn ─────────────────────────────────────────────────────────────
