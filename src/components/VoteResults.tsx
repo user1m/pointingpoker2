@@ -33,20 +33,20 @@ export function VoteResults({ players }: Props) {
 
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
         <h2 className="text-lg font-semibold text-white">Results</h2>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           {rawAverage !== null && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <div className="text-center">
-                <div className="text-xl font-medium text-indigo-400">
+                <div className="text-lg sm:text-xl font-medium text-indigo-400">
                   {rawAverage.toFixed(1)}
                 </div>
                 <div className="text-xs text-gray-500">avg</div>
               </div>
               <div className="text-gray-600">→</div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{suggestion}</div>
+                <div className="text-xl sm:text-2xl font-bold text-white">{suggestion}</div>
                 <div className="text-xs text-gray-500">suggested</div>
               </div>
             </div>
@@ -59,17 +59,17 @@ export function VoteResults({ players }: Props) {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap gap-3 sm:gap-4">
         {players.map((player) => (
           <div key={player.id} className="flex flex-col items-center gap-2">
             {player.vote ? (
               <PokerCard value={player.vote} revealed size="md" />
             ) : (
-              <div className="w-14 h-20 rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 text-xs">
+              <div className="w-11 h-16 sm:w-14 sm:h-20 rounded-lg border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 text-xs">
                 —
               </div>
             )}
-            <span className="text-xs text-gray-400 text-center max-w-[56px] truncate">
+            <span className="text-xs text-gray-400 text-center max-w-[44px] sm:max-w-[56px] truncate">
               {player.name}
             </span>
           </div>

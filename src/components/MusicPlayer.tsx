@@ -218,7 +218,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
   }
 
   return (
-    <div className={`flex items-center gap-3 rounded-lg px-4 py-2 border transition-colors ${
+    <div className={`flex items-center gap-2 sm:gap-3 rounded-lg px-2 sm:px-4 py-2 border transition-colors ${
       playing ? 'bg-indigo-950 border-indigo-700' : 'bg-gray-900 border-gray-800'
     }`}>
       <button
@@ -244,12 +244,13 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
         )}
       </button>
 
-      <span className={`text-xs whitespace-nowrap ${playing ? 'text-indigo-300' : 'text-gray-400'}`}>
+      {/* Text label — hidden on small screens to save header space */}
+      <span className={`hidden sm:block text-xs whitespace-nowrap ${playing ? 'text-indigo-300' : 'text-gray-400'}`}>
         {playing ? 'Playing…' : 'Think! music'}
       </span>
 
       {/* Volume */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <svg className="w-3 h-3 text-gray-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd"
             d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.784L4.93 14H3a1 1 0 01-1-1V7a1 1 0 011-1h1.93l3.453-2.784a1 1 0 011 .076zM12.293 7.293a1 1 0 011.414 0A5.98 5.98 0 0115 11a5.98 5.98 0 01-1.293 3.707 1 1 0 01-1.414-1.414A3.987 3.987 0 0013 11a3.987 3.987 0 00-.707-2.293 1 1 0 010-1.414z"
@@ -262,7 +263,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
           step="0.05"
           value={volume}
           onChange={handleVolumeChange}
-          className="w-20 accent-indigo-500"
+          className="w-16 sm:w-20 accent-indigo-500"
           title={`Volume: ${Math.round(volume * 100)}%`}
         />
       </div>

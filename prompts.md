@@ -63,3 +63,5 @@ A chronological record of all user inputs for this project.
 29. ok so the app works locally but on railway I get stuck in the 'connecting...' screen when trying to create a room. did we miss anything is the railway setup?
 
 30. Attention checks should only be for those who haven't voted yet during the open voting session. lets create a branch and add this feature.
+
+31. merge pr then work on a feature branch to make the app responsive on mobile devices
