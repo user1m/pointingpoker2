@@ -55,7 +55,7 @@ function wsDevPlugin(): Plugin {
 export default defineConfig({
   plugins: [
     wsDevPlugin(),
-    nitro({ serverDir: 'server' }),
+    nitro({ serverDir: 'server', experimental: { websocket: true } }),
     tsconfigPaths({ projects: ['./tsconfig.json'] }),
     tailwindcss(),
     tanstackStart(),
