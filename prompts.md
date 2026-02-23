@@ -59,3 +59,5 @@ A chronological record of all user inputs for this project.
 27. I find that the app requires me to enter my name twice before it lets me into the room. lets fix that issue in a feature branch
 
 28. create a prompts.md file and add all of my prompts into that doc. going forward record all my inputs there
+
+29. ok so the app works locally but on railway I get stuck in the 'connecting...' screen when trying to create a room. did we miss anything is the railway setup?
