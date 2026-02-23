@@ -472,10 +472,11 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
     // Advance past the max possible delay (60 s)
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     const nonHostMsgs = msgs['player-2'].map((m) => JSON.parse(m))
     expect(nonHostMsgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
@@ -488,9 +489,10 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     const parsed = hostMsgs.map((m) => JSON.parse(m))
     expect(parsed.some((m) => m.type === 'ATTENTION_CHECK')).toBe(false)
@@ -502,18 +504,19 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
     // Fire the attention check
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
     // Let the 30s window expire without a CHECK_IN
-    vi.advanceTimersByTime(30_001)
+    vi.advanceTimersByTime(15_001)
 
     expect(room.players.get('player-2')!.isActive).toBe(false)
   })
 
   it('does NOT mark players who responded as inactive', () => {
-    // Pin random so the check delay is exactly CHECK_MIN_MS (30 000 ms),
+    // Pin random so the check delay is exactly CHECK_MIN_MS (10 000 ms),
     // ensuring the resolve timer cannot fire inside the first advanceTimersByTime call.
     vi.spyOn(Math, 'random').mockReturnValue(0)
 
@@ -522,14 +525,15 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
-    // Fire the attention check (delay is pinned to 30 000 ms)
-    vi.advanceTimersByTime(30_001)
-    // Player responds before the 30 s window closes
+    // Fire the attention check (delay is pinned to 10 000 ms)
+    vi.advanceTimersByTime(10_001)
+    // Player responds before the 15 s window closes
     handleCheckIn(room, 'player-2')
     // Window expires
-    vi.advanceTimersByTime(30_001)
+    vi.advanceTimersByTime(15_001)
 
     expect(room.players.get('player-2')!.isActive).toBe(true)
   })
@@ -541,10 +545,11 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(60_001)
-    vi.advanceTimersByTime(30_001)
+    vi.advanceTimersByTime(15_001)
+    vi.advanceTimersByTime(15_001)
 
     const parsed = broadcastedMsgs.map((m) => JSON.parse(m))
     const statusMsg = parsed.find(
@@ -560,10 +565,11 @@ describe('attention check', () => {
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
+    openVoting(room)
     scheduleAttentionCheck(room.id)
 
-    vi.advanceTimersByTime(60_001) // fire check
-    vi.advanceTimersByTime(30_001) // resolve check
+    vi.advanceTimersByTime(15_001) // fire check
+    vi.advanceTimersByTime(15_001) // resolve check
 
     // After resolution a new timer must have been scheduled
     expect(room.attentionCheckTimer).not.toBeNull()
@@ -576,7 +582,7 @@ describe('attention check', () => {
     scheduleAttentionCheck(room.id)
 
     // No non-host players — check fires but immediately reschedules
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     expect(room.activeCheck).toBeNull()
     expect(room.attentionCheckTimer).not.toBeNull()
@@ -597,7 +603,7 @@ describe('attention check', () => {
     // player-3 has NOT voted
 
     scheduleAttentionCheck(room.id)
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     const p2Msgs = msgs['player-2'].map((m) => JSON.parse(m))
     const p3Msgs = msgs['player-3'].map((m) => JSON.parse(m))
@@ -620,8 +626,8 @@ describe('attention check', () => {
     // player-3 has NOT voted
 
     scheduleAttentionCheck(room.id)
-    vi.advanceTimersByTime(60_001) // fire check
-    vi.advanceTimersByTime(30_001) // resolve without any CHECK_IN
+    vi.advanceTimersByTime(15_001) // fire check
+    vi.advanceTimersByTime(15_001) // resolve without any CHECK_IN
 
     expect(room.players.get('player-2')!.isActive).toBe(true)  // voted — never targeted
     expect(room.players.get('player-3')!.isActive).toBe(false) // not voted — was targeted
@@ -638,31 +644,28 @@ describe('attention check', () => {
     castVote(room, 'player-2', '8') // everyone has voted
 
     scheduleAttentionCheck(room.id)
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     expect(room.activeCheck).toBeNull()
     expect(room.attentionCheckTimer).not.toBeNull()
   })
 
-  it('sends ATTENTION_CHECK to all non-host players when voting is NOT open', () => {
-    const msgs: Record<string, string[]> = { 'host-1': [], 'player-2': [], 'player-3': [] }
-    registerPeer('host-1', { send: (d) => msgs['host-1'].push(d) })
+  it('skips firing and reschedules when voting is NOT open', () => {
+    const msgs: Record<string, string[]> = { 'player-2': [] }
+    registerPeer('host-1', { send: () => {} })
     registerPeer('player-2', { send: (d) => msgs['player-2'].push(d) })
-    registerPeer('player-3', { send: (d) => msgs['player-3'].push(d) })
 
     const room = createRoom('host-1', 'Alice')
     addPlayerToRoom(room, makePlayer({ id: 'player-2', name: 'Bob' }))
-    addPlayerToRoom(room, makePlayer({ id: 'player-3', name: 'Carol' }))
-    // votingOpen is false — no filter applied
+    // votingOpen is false — checks should be skipped entirely
 
     scheduleAttentionCheck(room.id)
-    vi.advanceTimersByTime(60_001)
+    vi.advanceTimersByTime(15_001)
 
     const p2Msgs = msgs['player-2'].map((m) => JSON.parse(m))
-    const p3Msgs = msgs['player-3'].map((m) => JSON.parse(m))
-
-    expect(p2Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
-    expect(p3Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(true)
+    expect(p2Msgs.some((m) => m.type === 'ATTENTION_CHECK')).toBe(false)
+    expect(room.activeCheck).toBeNull()
+    expect(room.attentionCheckTimer).not.toBeNull()
   })
 })
 
