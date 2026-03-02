@@ -10,8 +10,8 @@ import { AttentionModal } from '#/components/AttentionModal'
 import type { CardValue } from '#/lib/types'
 
 const searchSchema = z.object({
-  name: z.string(),
-  code: z.string().optional(),
+  name: z.coerce.string(),
+  code: z.coerce.string().optional(),
 })
 
 export const Route = createFileRoute('/room/$roomId')({
