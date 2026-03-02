@@ -166,12 +166,13 @@ describe('JOIN — join by code', () => {
     expect(bob.lastMessage()?.type).toBe('ROOM_STATE')
   })
 
-  it('creates a new room when the code does not exist', () => {
+  it('returns ROOM_NOT_FOUND when the code does not exist', () => {
     const alice = new FakePeer('alice')
     openPeer(alice)
     send(alice, { type: 'JOIN', payload: { name: 'Alice', code: 'ZZZZ' } })
-    // ZZZZ doesn't exist — falls through to room creation
-    expect(alice.lastMessage()?.type).toBe('ROOM_STATE')
+    // ZZZZ doesn't exist — client intended to join existing room, so return error
+    expect(alice.lastMessage()?.type).toBe('ROOM_NOT_FOUND')
+    expect((alice.lastMessage()?.payload as { code?: string }).code).toBe('ZZZZ')
   })
 })
 
@@ -190,6 +191,14 @@ describe('JOIN — join by roomId', () => {
     send(bob, { type: 'JOIN', payload: { name: 'Bob', roomId } })
     const bobState = bob.lastMessage()!.payload.room as { id: string }
     expect(bobState.id).toBe(roomId)
+  })
+
+  it('returns ROOM_NOT_FOUND when roomId does not exist', () => {
+    const alice = new FakePeer('alice')
+    openPeer(alice)
+    send(alice, { type: 'JOIN', payload: { name: 'Alice', roomId: 'non-existent-id' } })
+    expect(alice.lastMessage()?.type).toBe('ROOM_NOT_FOUND')
+    expect((alice.lastMessage()?.payload as { roomId?: string }).roomId).toBe('non-existent-id')
   })
 })
 

@@ -72,3 +72,4 @@ export type ServerMessage =
   | { type: 'ATTENTION_CHECK'; payload: { deadline: number } }
   | { type: 'PLAYER_STATUS'; payload: { playerId: string; isActive: boolean } }
   | { type: 'ERROR'; payload: { message: string } }
+  | { type: 'ROOM_NOT_FOUND'; payload: { roomId?: string; code?: string } }

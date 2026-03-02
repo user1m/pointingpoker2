@@ -7,6 +7,7 @@ export interface RoomState {
   connected: boolean
   error: string | null
   attentionCheck: { deadline: number } | null
+  roomNotFound: boolean
 }
 
 export function useRoom(name: string, roomId?: string, code?: string) {
@@ -16,10 +17,13 @@ export function useRoom(name: string, roomId?: string, code?: string) {
     connected: false,
     error: null,
     attentionCheck: null,
+    roomNotFound: false,
   })
 
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Stop auto-reconnecting if the room no longer exists (server restart, room expired)
+  const shouldStopReconnecting = useRef(false)
 
   // Keep roomId and code in refs so connect() always sends the latest values
   // without needing them as useCallback deps. This prevents the WebSocket from
@@ -190,6 +194,17 @@ export function useRoom(name: string, roomId?: string, code?: string) {
             return { ...prev, error: msg.payload.message }
           }
 
+          case 'ROOM_NOT_FOUND': {
+            // Room no longer exists (server restart, expired) — stop reconnecting
+            // and show a specific error so the user knows to start fresh.
+            shouldStopReconnecting.current = true
+            return {
+              ...prev,
+              roomNotFound: true,
+              error: 'Room not found. The room may have expired or the server was restarted.',
+            }
+          }
+
           default:
             return prev
         }
@@ -207,7 +222,9 @@ export function useRoom(name: string, roomId?: string, code?: string) {
       // cleanup before it connects, and a stale onclose would otherwise
       // schedule a spurious reconnect that causes the player to join a second
       // time with a new peer ID — producing a duplicate entry in the room.
-      if (wsRef.current === ws) {
+      // Also stop reconnecting if the room was not found (prevents infinite
+      // reconnection loops when the room no longer exists).
+      if (wsRef.current === ws && !shouldStopReconnecting.current) {
         reconnectTimer.current = setTimeout(connect, 3000)
       }
     }

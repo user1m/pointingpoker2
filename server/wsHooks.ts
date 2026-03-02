@@ -67,6 +67,7 @@ export const wsHooks = {
           return
         }
 
+        const wantsToJoinExisting = !!(roomId || code)
         let room = roomId
           ? getRoomById(roomId)
           : code
@@ -74,6 +75,18 @@ export const wsHooks = {
             : undefined
 
         if (!room) {
+          // If client provided a roomId/code, they intended to join an existing room.
+          // If that room doesn't exist (server restart, room expired), return error
+          // instead of creating a new room — this prevents users from accidentally
+          // becoming hosts of new rooms when they reconnect after a disconnect.
+          if (wantsToJoinExisting) {
+            sendTo(playerId, {
+              type: 'ROOM_NOT_FOUND',
+              payload: { roomId, code },
+            })
+            return
+          }
+
           room = createRoom(playerId, name.trim())
           peerRooms.set(playerId, room.id)
           sendTo(playerId, {
