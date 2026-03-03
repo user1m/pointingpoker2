@@ -560,7 +560,7 @@ describe('MARK_ACTIVE', () => {
 // ── CLOSE (disconnect) ────────────────────────────────────────────────────────
 
 describe('close (disconnect)', () => {
-  it('broadcasts PLAYER_LEFT to remaining members when a non-host disconnects', () => {
+  it('broadcasts PLAYER_STATUS inactive when a non-host disconnects (grace period)', () => {
     const alice = new FakePeer('alice')
     const bob = new FakePeer('bob')
     openPeer(alice)
@@ -573,8 +573,10 @@ describe('close (disconnect)', () => {
 
     closePeer(bob)
 
-    const leftMsg = alice.messagesOfType('PLAYER_LEFT')[0]
-    expect(leftMsg?.payload.playerId).toBe('bob')
+    // During grace period, player shows as inactive but stays in room
+    const statusMsg = alice.messagesOfType('PLAYER_STATUS')[0]
+    expect(statusMsg?.payload.playerId).toBe('bob')
+    expect(statusMsg?.payload.isActive).toBe(false)
   })
 
   it('closes the room when the last player disconnects', () => {

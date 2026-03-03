@@ -22,6 +22,7 @@ import {
   toRoomDTO,
   toPlayerDTO,
   scheduleAttentionCheck,
+  tryReconnectPlayer,
 } from './roomStore.js'
 import type { ClientMessage, Player } from '../src/lib/types.js'
 
@@ -65,6 +66,27 @@ export const wsHooks = {
         if (!name || name.trim().length === 0) {
           sendTo(playerId, { type: 'ERROR', payload: { message: 'Name is required' } })
           return
+        }
+
+        // Check if this player is reconnecting within the grace period
+        const reconnectionData = tryReconnectPlayer(playerId)
+        if (reconnectionData) {
+          const { roomId: existingRoomId, player } = reconnectionData
+          const room = getRoomById(existingRoomId)
+          if (room) {
+            // Player reconnected within grace period - restore their session
+            peerRooms.set(playerId, room.id)
+            sendTo(playerId, {
+              type: 'ROOM_STATE',
+              payload: { room: toRoomDTO(room), playerId },
+            })
+            // Notify others that player is back
+            broadcastToRoom(room.id, {
+              type: 'PLAYER_STATUS',
+              payload: { playerId, isActive: true },
+            }, playerId)
+            break
+          }
         }
 
         const wantsToJoinExisting = !!(roomId || code)
@@ -237,9 +259,19 @@ export const wsHooks = {
 
     if (!roomId) return
 
-    const { roomClosed } = removePlayerFromRoom(roomId, playerId)
+    const { roomClosed, inGracePeriod } = removePlayerFromRoom(roomId, playerId)
     if (!roomClosed) {
-      broadcastToRoom(roomId, { type: 'PLAYER_LEFT', payload: { playerId } })
+      if (inGracePeriod) {
+        // Player is in grace period - show them as temporarily disconnected
+        // but don't remove them from the room yet
+        broadcastToRoom(roomId, {
+          type: 'PLAYER_STATUS',
+          payload: { playerId, isActive: false },
+        })
+      } else {
+        // Player was immediately removed (another player reconnected or grace period logic)
+        broadcastToRoom(roomId, { type: 'PLAYER_LEFT', payload: { playerId } })
+      }
     }
   },
 }

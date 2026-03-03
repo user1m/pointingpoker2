@@ -5,6 +5,13 @@ import type { Room, Player, PlayerDTO, RoomDTO, CardValue, ServerMessage } from 
 const rooms = new Map<string, Room>()
 const peers = new Map<string, { send: (data: string) => void }>()
 
+// Grace period for disconnected players (ms) - allows reconnection without losing state
+const GRACE_PERIOD_MS = 5 * 60 * 1000 // 5 minutes
+const gracePeriodTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+// Track disconnected players so they can rejoin with the same ID
+const disconnectedPlayers = new Map<string, { roomId: string; player: Player }>()
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateCode(): string {
@@ -127,26 +134,88 @@ export function addPlayerToRoom(room: Room, player: Player) {
   room.players.set(player.id, player)
 }
 
-export function removePlayerFromRoom(roomId: string, playerId: string): { roomClosed: boolean } {
+export function removePlayerFromRoom(roomId: string, playerId: string): { roomClosed: boolean; inGracePeriod: boolean } {
   const room = rooms.get(roomId)
-  if (!room) return { roomClosed: true }
+  if (!room) return { roomClosed: true, inGracePeriod: false }
 
+  const player = room.players.get(playerId)
+  if (!player) return { roomClosed: false, inGracePeriod: false }
+
+  // Check if other players are still connected (not in grace period)
+  const connectedPlayers = [...room.players.keys()].filter(
+    id => id !== playerId && !gracePeriodTimers.has(id)
+  )
+
+  // If this is the last connected player and no one else is in grace period, close room immediately
+  if (connectedPlayers.length === 0) {
+    // Clear any existing grace periods for this room since everyone is gone
+    for (const [id, data] of disconnectedPlayers) {
+      if (data.roomId === roomId) {
+        const timer = gracePeriodTimers.get(id)
+        if (timer) clearTimeout(timer)
+        gracePeriodTimers.delete(id)
+        disconnectedPlayers.delete(id)
+      }
+    }
+    closeRoom(roomId)
+    return { roomClosed: true, inGracePeriod: false }
+  }
+
+  // Start grace period for this player
+  // Store player data for potential reconnection
+  disconnectedPlayers.set(playerId, { roomId, player })
+
+  const timer = setTimeout(() => {
+    // Grace period expired - actually remove the player
+    finalizePlayerRemoval(roomId, playerId)
+  }, GRACE_PERIOD_MS)
+
+  gracePeriodTimers.set(playerId, timer)
+
+  // Reassign host if needed (immediately, don't wait for grace period)
+  if (room.hostId === playerId) {
+    // Find first connected player to be new host
+    const newHostId = connectedPlayers[0]
+    if (newHostId) {
+      const newHost = room.players.get(newHostId)!
+      newHost.isHost = true
+      room.hostId = newHostId
+      broadcastToRoom(roomId, { type: 'HOST_CHANGED', payload: { newHostId } })
+    }
+  }
+
+  return { roomClosed: false, inGracePeriod: true }
+}
+
+function finalizePlayerRemoval(roomId: string, playerId: string) {
+  const room = rooms.get(roomId)
+  if (!room) return
+
+  // Only actually remove if they're still in the room (haven't reconnected)
   room.players.delete(playerId)
+  disconnectedPlayers.delete(playerId)
+  gracePeriodTimers.delete(playerId)
 
+  // If room is now empty, close it
   if (room.players.size === 0) {
     closeRoom(roomId)
-    return { roomClosed: true }
   }
+}
 
-  // Reassign host if needed
-  if (room.hostId === playerId) {
-    const newHost = room.players.values().next().value as Player
-    newHost.isHost = true
-    room.hostId = newHost.id
-    broadcastToRoom(roomId, { type: 'HOST_CHANGED', payload: { newHostId: newHost.id } })
-  }
+export function tryReconnectPlayer(playerId: string): { roomId: string; player: Player } | null {
+  const data = disconnectedPlayers.get(playerId)
+  if (!data) return null
 
-  return { roomClosed: false }
+  // Cancel grace period timer
+  const timer = gracePeriodTimers.get(playerId)
+  if (timer) clearTimeout(timer)
+  gracePeriodTimers.delete(playerId)
+  disconnectedPlayers.delete(playerId)
+
+  // Restore player's connection status
+  data.player.isActive = true
+
+  return data
 }
 
 export function openVoting(room: Room): boolean {
@@ -276,6 +345,12 @@ export function handleCheckIn(room: Room, playerId: string) {
 export function _resetForTesting() {
   rooms.clear()
   peers.clear()
+  // Clear all grace period timers to prevent memory leaks in tests
+  for (const timer of gracePeriodTimers.values()) {
+    clearTimeout(timer)
+  }
+  gracePeriodTimers.clear()
+  disconnectedPlayers.clear()
 }
 
 export function handleMarkActive(room: Room, playerId: string) {
