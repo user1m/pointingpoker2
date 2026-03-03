@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { useState } from 'react'
 
 const searchSchema = z.object({
-  code: z.string().optional(),
+  code: z.coerce.string().optional(),
 })
 
 export const Route = createFileRoute('/room/join')({
