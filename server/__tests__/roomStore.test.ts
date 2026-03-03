@@ -142,14 +142,16 @@ describe('addPlayerToRoom', () => {
 // ── removePlayerFromRoom ──────────────────────────────────────────────────────
 
 describe('removePlayerFromRoom', () => {
-  it('removes a player and returns roomClosed=false when others remain', () => {
+  it('puts player in grace period and returns inGracePeriod=true when others remain', () => {
     const room = createRoom('host-1', 'Alice')
     const bob = makePlayer({ id: 'player-2', name: 'Bob' })
     addPlayerToRoom(room, bob)
 
     const result = removePlayerFromRoom(room.id, 'player-2')
     expect(result.roomClosed).toBe(false)
-    expect(room.players.has('player-2')).toBe(false)
+    expect(result.inGracePeriod).toBe(true)
+    // Player stays in room during grace period
+    expect(room.players.has('player-2')).toBe(true)
   })
 
   it('closes the room when the last player leaves', () => {
