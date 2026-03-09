@@ -135,8 +135,11 @@ export function scheduleRoomClosure(roomId: string, delayMs: number) {
     const hasConnectedPlayers = [...room.players.keys()].some(
       (id) => !gracePeriodTimers.has(id)
     )
+    const hasGracePeriodPlayers = [...room.players.keys()].some(
+      (id) => gracePeriodTimers.has(id)
+    )
 
-    if (!hasConnectedPlayers) {
+    if (!hasConnectedPlayers && !hasGracePeriodPlayers) {
       closeRoom(roomId)
     }
     roomCloseTimers.delete(roomId)
