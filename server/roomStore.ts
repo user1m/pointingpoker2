@@ -56,6 +56,7 @@ export function toRoomDTO(room: Room): RoomDTO {
     revealed: room.revealed,
     hostId: room.hostId,
     activeCheck: room.activeCheck ? { deadline: room.activeCheck.deadline } : null,
+    musicPlaying: room.musicPlaying,
   }
 }
 
@@ -102,6 +103,7 @@ export function createRoom(hostId: string, hostName: string): Room {
     activeCheck: null,
     createdAt: now,
     closeTimer: null,
+    musicPlaying: false,
   }
 
   rooms.set(roomId, room)
@@ -431,4 +433,15 @@ export function handleMarkActive(room: Room, playerId: string) {
     type: 'PLAYER_STATUS',
     payload: { playerId, isActive: true },
   })
+}
+
+// ── Music control ─────────────────────────────────────────────────────────────
+
+export function setMusicPlaying(room: Room, playing: boolean): boolean {
+  room.musicPlaying = playing
+  broadcastToRoom(room.id, {
+    type: 'MUSIC_STATE',
+    payload: { playing },
+  })
+  return true
 }
