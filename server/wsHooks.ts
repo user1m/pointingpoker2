@@ -23,6 +23,7 @@ import {
   toPlayerDTO,
   scheduleAttentionCheck,
   tryReconnectPlayer,
+  setMusicPlaying,
 } from './roomStore.js'
 import type { ClientMessage, Player } from '../src/lib/types.js'
 
@@ -245,6 +246,22 @@ export const wsHooks = {
         const room = getRoomById(roomId)
         if (!room) return
         handleMarkActive(room, playerId)
+        break
+      }
+
+      case 'MUSIC_CONTROL': {
+        const roomId = peerRooms.get(playerId)
+        if (!roomId) return
+        const room = getRoomById(roomId)
+        if (!room) return
+
+        // Only host can control music
+        if (room.hostId !== playerId) {
+          sendTo(playerId, { type: 'ERROR', payload: { message: 'Only the host can control music' } })
+          return
+        }
+
+        setMusicPlaying(room, msg.payload.playing)
         break
       }
     }
