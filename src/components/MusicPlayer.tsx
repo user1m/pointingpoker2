@@ -125,7 +125,7 @@ export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPla
       const audio = audioRef.current
       if (!audio) return
       void audio.play()
-      setPlaying(true)
+      setLocalPlaying(true)
       return
     }
 
@@ -142,7 +142,7 @@ export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPla
 
     activeRef.current = true
     scheduleNote(0)
-    setPlaying(true)
+    setLocalPlaying(true)
   }
 
   function stopPlayback() {
@@ -152,7 +152,7 @@ export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPla
         audio.pause()
         audio.currentTime = 0
       }
-      setPlaying(false)
+      setLocalPlaying(false)
       return
     }
 
@@ -173,7 +173,7 @@ export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPla
         if (!activeRef.current && master) master.gain.value = volumeRef.current
       }, 120)
     }
-    setPlaying(false)
+    setLocalPlaying(false)
   }
 
   // Sync local playback with server state
