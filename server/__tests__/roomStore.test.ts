@@ -154,11 +154,29 @@ describe('removePlayerFromRoom', () => {
     expect(room.players.has('player-2')).toBe(true)
   })
 
-  it('closes the room when the last player leaves', () => {
+  it('keeps room alive for 1 hour minimum when last player leaves', () => {
     const room = createRoom('host-1', 'Alice')
     const result = removePlayerFromRoom(room.id, 'host-1')
-    expect(result.roomClosed).toBe(true)
+    // Room stays open (in grace period) due to 1-hour minimum lifetime
+    expect(result.roomClosed).toBe(false)
+    expect(result.inGracePeriod).toBe(true)
+    expect(getRoomById(room.id)).toBeDefined()
+  })
+
+  it('closes the room after 1 hour when last player leaves', () => {
+    vi.useFakeTimers()
+    const room = createRoom('host-1', 'Alice')
+
+    // Last player leaves
+    removePlayerFromRoom(room.id, 'host-1')
+
+    // Advance time by 1 hour + 1 second
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1000)
+
+    // Room should be closed now
     expect(getRoomById(room.id)).toBeUndefined()
+
+    vi.useRealTimers()
   })
 
   it('reassigns host to another player when host leaves', () => {

@@ -12,6 +12,10 @@ const gracePeriodTimers = new Map<string, ReturnType<typeof setTimeout>>()
 // Track disconnected players so they can rejoin with the same ID
 const disconnectedPlayers = new Map<string, { roomId: string; player: Player }>()
 
+// Minimum room lifetime (ms) - rooms stay alive for at least this long
+const MIN_ROOM_LIFETIME_MS = 60 * 60 * 1000 // 1 hour
+const roomCloseTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function generateCode(): string {
@@ -86,6 +90,7 @@ export function createRoom(hostId: string, hostName: string): Room {
     hasVoted: false,
   }
 
+  const now = Date.now()
   const room: Room = {
     id: roomId,
     code,
@@ -95,10 +100,14 @@ export function createRoom(hostId: string, hostName: string): Room {
     hostId,
     attentionCheckTimer: null,
     activeCheck: null,
+    createdAt: now,
+    closeTimer: null,
   }
 
   rooms.set(roomId, room)
   scheduleAttentionCheck(roomId)
+  // Schedule room closure after minimum lifetime
+  scheduleRoomClosure(roomId, MIN_ROOM_LIFETIME_MS)
   return room
 }
 
@@ -113,10 +122,43 @@ export function getRoomByCode(code: string): Room | undefined {
   return undefined
 }
 
+export function scheduleRoomClosure(roomId: string, delayMs: number) {
+  // Cancel any existing close timer
+  const existingTimer = roomCloseTimers.get(roomId)
+  if (existingTimer) clearTimeout(existingTimer)
+
+  const timer = setTimeout(() => {
+    const room = rooms.get(roomId)
+    if (!room) return
+
+    // Only close if room is empty (no connected players and no grace period players)
+    const hasConnectedPlayers = [...room.players.keys()].some(
+      (id) => !gracePeriodTimers.has(id)
+    )
+
+    if (!hasConnectedPlayers) {
+      closeRoom(roomId)
+    }
+    roomCloseTimers.delete(roomId)
+  }, delayMs)
+
+  roomCloseTimers.set(roomId, timer)
+}
+
+export function cancelRoomClosure(roomId: string) {
+  const timer = roomCloseTimers.get(roomId)
+  if (timer) {
+    clearTimeout(timer)
+    roomCloseTimers.delete(roomId)
+  }
+}
+
 export function closeRoom(roomId: string) {
   const room = rooms.get(roomId)
   if (!room) return
   if (room.attentionCheckTimer) clearTimeout(room.attentionCheckTimer)
+  if (room.closeTimer) clearTimeout(room.closeTimer)
+  cancelRoomClosure(roomId)
   rooms.delete(roomId)
 }
 
@@ -146,19 +188,36 @@ export function removePlayerFromRoom(roomId: string, playerId: string): { roomCl
     id => id !== playerId && !gracePeriodTimers.has(id)
   )
 
-  // If this is the last connected player and no one else is in grace period, close room immediately
+  // If this is the last connected player, check if we should close or wait for minimum lifetime
   if (connectedPlayers.length === 0) {
-    // Clear any existing grace periods for this room since everyone is gone
-    for (const [id, data] of disconnectedPlayers) {
-      if (data.roomId === roomId) {
-        const timer = gracePeriodTimers.get(id)
-        if (timer) clearTimeout(timer)
-        gracePeriodTimers.delete(id)
-        disconnectedPlayers.delete(id)
+    const roomAge = Date.now() - room.createdAt
+    const timeRemaining = MIN_ROOM_LIFETIME_MS - roomAge
+
+    if (timeRemaining <= 0) {
+      // Room has existed for at least 1 hour, can close immediately when last player leaves
+      // But still respect grace period for other disconnected players
+      const gracePeriodPlayers = [...room.players.keys()].filter(
+        id => id !== playerId && gracePeriodTimers.has(id)
+      )
+
+      if (gracePeriodPlayers.length === 0) {
+        // No one in grace period either, close the room
+        for (const [id, data] of disconnectedPlayers) {
+          if (data.roomId === roomId) {
+            const timer = gracePeriodTimers.get(id)
+            if (timer) clearTimeout(timer)
+            gracePeriodTimers.delete(id)
+            disconnectedPlayers.delete(id)
+          }
+        }
+        closeRoom(roomId)
+        return { roomClosed: true, inGracePeriod: false }
       }
+      // There are grace period players, start grace period for this player too
+    } else {
+      // Room is younger than 1 hour, schedule closure at the 1-hour mark
+      scheduleRoomClosure(roomId, timeRemaining)
     }
-    closeRoom(roomId)
-    return { roomClosed: true, inGracePeriod: false }
   }
 
   // Start grace period for this player
@@ -211,6 +270,9 @@ export function tryReconnectPlayer(playerId: string): { roomId: string; player: 
   if (timer) clearTimeout(timer)
   gracePeriodTimers.delete(playerId)
   disconnectedPlayers.delete(playerId)
+
+  // Cancel room closure timer since someone is reconnecting
+  cancelRoomClosure(data.roomId)
 
   // Restore player's connection status
   data.player.isActive = true
@@ -351,6 +413,11 @@ export function _resetForTesting() {
   }
   gracePeriodTimers.clear()
   disconnectedPlayers.clear()
+  // Clear room close timers
+  for (const timer of roomCloseTimers.values()) {
+    clearTimeout(timer)
+  }
+  roomCloseTimers.clear()
 }
 
 export function handleMarkActive(room: Room, playerId: string) {

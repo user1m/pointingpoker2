@@ -579,15 +579,26 @@ describe('close (disconnect)', () => {
     expect(statusMsg?.payload.isActive).toBe(false)
   })
 
-  it('closes the room when the last player disconnects', () => {
+  it('keeps room alive for 1 hour after last player disconnects', () => {
+    vi.useFakeTimers()
     const alice = new FakePeer('alice')
     openPeer(alice)
     send(alice, { type: 'JOIN', payload: { name: 'Alice' } })
     const roomId = (alice.lastMessage()!.payload.room as { id: string }).id
 
+    // Player disconnects
     closePeer(alice)
 
+    // Room still exists (1-hour minimum lifetime)
+    expect(getRoomById(roomId)).toBeDefined()
+
+    // Advance time by 1 hour + 1 second
+    vi.advanceTimersByTime(60 * 60 * 1000 + 1000)
+
+    // Now room should be closed
     expect(getRoomById(roomId)).toBeUndefined()
+
+    vi.useRealTimers()
   })
 
   it('auto-assigns a new host when the host disconnects', () => {
