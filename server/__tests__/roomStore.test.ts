@@ -170,9 +170,15 @@ describe('removePlayerFromRoom', () => {
     // Last player leaves
     removePlayerFromRoom(room.id, 'host-1')
 
-    // Advance time by 1 hour + 1 second
-    vi.advanceTimersByTime(60 * 60 * 1000 + 1000)
+    const GRACE_PERIOD_MS = 5 * 60 * 1000
+    const ONE_HOUR_MS = 60 * 60 * 1000
 
+    // After grace period expires, room should still be alive due to 1-hour minimum lifetime
+    vi.advanceTimersByTime(GRACE_PERIOD_MS + 1)
+    expect(getRoomById(room.id)).toBeDefined()
+
+    // Advance remaining time up to 1 hour (plus a small buffer) so the room should close
+    vi.advanceTimersByTime(ONE_HOUR_MS - GRACE_PERIOD_MS + 1000)
     // Room should be closed now
     expect(getRoomById(room.id)).toBeUndefined()
 

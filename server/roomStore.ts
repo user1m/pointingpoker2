@@ -160,7 +160,7 @@ export function closeRoom(roomId: string) {
   const room = rooms.get(roomId)
   if (!room) return
   if (room.attentionCheckTimer) clearTimeout(room.attentionCheckTimer)
-  if (room.closeTimer) clearTimeout(room.closeTimer)
+
   cancelRoomClosure(roomId)
   rooms.delete(roomId)
 }

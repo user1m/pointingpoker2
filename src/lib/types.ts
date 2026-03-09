@@ -23,7 +23,7 @@ export interface Room {
     targetIds: Set<string>
   } | null
   createdAt: number
-  closeTimer: ReturnType<typeof setTimeout> | null
+
 }
 
 // DTOs sent over the wire (no Maps or Sets — plain objects/arrays)
