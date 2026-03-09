@@ -193,6 +193,16 @@ export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPla
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [musicPlaying, audioSource])
 
+  // Auto-play when voting opens (host only)
+  useEffect(() => {
+    if (audioSource === 'detecting') return
+    if (votingOpen && !musicPlaying) {
+      // Automatically start music when voting opens
+      controlMusic(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [votingOpen, audioSource])
+
   // Full cleanup on unmount
   useEffect(() => {
     return () => {
