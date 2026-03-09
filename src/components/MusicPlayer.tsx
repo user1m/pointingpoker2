@@ -3,13 +3,15 @@ import { buildNoteSequence } from '#/lib/jeopardyMusic'
 
 interface MusicPlayerProps {
   votingOpen: boolean
+  musicPlaying: boolean
+  controlMusic: (playing: boolean) => void
 }
 
 type AudioSource = 'detecting' | 'file' | 'synth'
 
-export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
-  const [playing, setPlaying] = useState(false)
+export function MusicPlayer({ votingOpen, musicPlaying, controlMusic }: MusicPlayerProps) {
   const [volume, setVolume] = useState(0.3)
+  const [localPlaying, setLocalPlaying] = useState(false)
 
   // Mirror audioSource in a ref so async callbacks never close over stale state
   const [audioSource, _setAudioSource] = useState<AudioSource>('detecting')
@@ -123,7 +125,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
       const audio = audioRef.current
       if (!audio) return
       void audio.play()
-      setPlaying(true)
+      setLocalPlaying(true)
       return
     }
 
@@ -140,7 +142,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
 
     activeRef.current = true
     scheduleNote(0)
-    setPlaying(true)
+    setLocalPlaying(true)
   }
 
   function stopPlayback() {
@@ -150,7 +152,7 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
         audio.pause()
         audio.currentTime = 0
       }
-      setPlaying(false)
+      setLocalPlaying(false)
       return
     }
 
@@ -171,23 +173,25 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
         if (!activeRef.current && master) master.gain.value = volumeRef.current
       }, 120)
     }
-    setPlaying(false)
+    setLocalPlaying(false)
   }
 
-  // Autoplay when voting opens; wait until source is resolved before starting
+  // Sync local playback with server state
   useEffect(() => {
     if (audioSource === 'detecting') return
-    if (votingOpen) {
+    if (musicPlaying) {
       startPlayback()
+      setLocalPlaying(true)
     } else {
       stopPlayback()
+      setLocalPlaying(false)
     }
     return () => {
       activeRef.current = false
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [votingOpen, audioSource])
+  }, [musicPlaying, audioSource])
 
   // Full cleanup on unmount
   useEffect(() => {
@@ -200,8 +204,8 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
   }, [])
 
   function toggle() {
-    if (playing) stopPlayback()
-    else startPlayback()
+    // Send control message to server - server broadcasts to all clients
+    controlMusic(!musicPlaying)
   }
 
   function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -219,17 +223,17 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
 
   return (
     <div className={`flex items-center gap-2 sm:gap-3 rounded-lg px-2 sm:px-4 py-2 border transition-colors ${
-      playing ? 'bg-indigo-950 border-indigo-700' : 'bg-gray-900 border-gray-800'
+      musicPlaying ? 'bg-indigo-950 border-indigo-700' : 'bg-gray-900 border-gray-800'
     }`}>
       <button
         type="button"
         onClick={toggle}
         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
-          playing ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'
+          musicPlaying ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'
         }`}
-        title={playing ? 'Pause hold music' : 'Play hold music'}
+        title={musicPlaying ? 'Pause hold music' : 'Play hold music'}
       >
-        {playing ? (
+        {musicPlaying ? (
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd"
               d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v4a1 1 0 11-2 0V8z"
@@ -245,8 +249,8 @@ export function MusicPlayer({ votingOpen }: MusicPlayerProps) {
       </button>
 
       {/* Text label — hidden on small screens to save header space */}
-      <span className={`hidden sm:block text-xs whitespace-nowrap ${playing ? 'text-indigo-300' : 'text-gray-400'}`}>
-        {playing ? 'Playing…' : 'Think! music'}
+      <span className={`hidden sm:block text-xs whitespace-nowrap ${musicPlaying ? 'text-indigo-300' : 'text-gray-400'}`}>
+        {musicPlaying ? 'Playing…' : 'Think! music'}
       </span>
 
       {/* Volume */}

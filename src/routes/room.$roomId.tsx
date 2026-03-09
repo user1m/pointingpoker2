@@ -6,6 +6,7 @@ import { CardDeck } from '#/components/CardDeck'
 import { PlayerList } from '#/components/PlayerList'
 import { VoteResults } from '#/components/VoteResults'
 import { MusicPlayer } from '#/components/MusicPlayer'
+import { MusicListener } from '#/components/MusicListener'
 import { AttentionModal } from '#/components/AttentionModal'
 import type { CardValue } from '#/lib/types'
 
@@ -28,7 +29,7 @@ function RoomPage() {
 
   const actualRoomId = roomId === 'new' ? undefined : roomId
 
-  const { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost } = useRoom(
+  const { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost, controlMusic } = useRoom(
     name,
     actualRoomId,
     code,
@@ -136,8 +137,16 @@ function RoomPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Music player — host only */}
-              {isHost && <MusicPlayer votingOpen={votingOpen} />}
+              {/* Music player — host only with controls */}
+              {isHost && (
+                <MusicPlayer
+                  votingOpen={votingOpen}
+                  musicPlaying={room.musicPlaying}
+                  controlMusic={controlMusic}
+                />
+              )}
+              {/* Music listener — all attendees hear music controlled by host */}
+              <MusicListener musicPlaying={room.musicPlaying} />
               <button
                 type="button"
                 onClick={() => void copyLink()}

@@ -205,6 +205,17 @@ export function useRoom(name: string, roomId?: string, code?: string) {
             }
           }
 
+          case 'MUSIC_STATE': {
+            if (!prev.room) return prev
+            return {
+              ...prev,
+              room: {
+                ...prev.room,
+                musicPlaying: msg.payload.playing,
+              },
+            }
+          }
+
           default:
             return prev
         }
@@ -277,5 +288,10 @@ export function useRoom(name: string, roomId?: string, code?: string) {
     [send],
   )
 
-  return { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost }
+  const controlMusic = useCallback(
+    (playing: boolean) => send({ type: 'MUSIC_CONTROL', payload: { playing } }),
+    [send],
+  )
+
+  return { state, openVoting, vote, reveal, newRound, checkIn, markActive, assignHost, controlMusic }
 }
