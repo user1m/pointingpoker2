@@ -22,6 +22,8 @@ export interface Room {
     respondedIds: Set<string>
     targetIds: Set<string>
   } | null
+  createdAt: number
+
 }
 
 // DTOs sent over the wire (no Maps or Sets — plain objects/arrays)
