@@ -56,6 +56,7 @@ export function toRoomDTO(room: Room): RoomDTO {
     revealed: room.revealed,
     hostId: room.hostId,
     activeCheck: room.activeCheck ? { deadline: room.activeCheck.deadline } : null,
+    musicPlaying: room.musicPlaying,
   }
 }
 
@@ -98,6 +99,7 @@ export function createRoom(hostId: string, hostName: string): Room {
     votingOpen: false,
     revealed: false,
     hostId,
+    musicPlaying: false,
     attentionCheckTimer: null,
     activeCheck: null,
     createdAt: now,
@@ -258,9 +260,16 @@ function finalizePlayerRemoval(roomId: string, playerId: string) {
   disconnectedPlayers.delete(playerId)
   gracePeriodTimers.delete(playerId)
 
-  // If room is now empty, close it
+  // If room is now empty, check if we should close or wait for minimum lifetime
   if (room.players.size === 0) {
-    closeRoom(roomId)
+    const roomAge = Date.now() - room.createdAt
+    const timeRemaining = MIN_ROOM_LIFETIME_MS - roomAge
+
+    if (timeRemaining <= 0) {
+      // Room has existed for at least 1 hour, can close now
+      closeRoom(roomId)
+    }
+    // If room is younger than 1 hour, the room close timer will handle it
   }
 }
 
@@ -431,4 +440,15 @@ export function handleMarkActive(room: Room, playerId: string) {
     type: 'PLAYER_STATUS',
     payload: { playerId, isActive: true },
   })
+}
+
+// ── Music control ─────────────────────────────────────────────────────────────
+
+export function setMusicPlaying(room: Room, playing: boolean): boolean {
+  room.musicPlaying = playing
+  broadcastToRoom(room.id, {
+    type: 'MUSIC_STATE',
+    payload: { playing },
+  })
+  return true
 }

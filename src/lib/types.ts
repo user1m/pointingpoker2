@@ -23,7 +23,8 @@ export interface Room {
     targetIds: Set<string>
   } | null
   createdAt: number
-
+  closeTimer: ReturnType<typeof setTimeout> | null
+  musicPlaying: boolean
 }
 
 // DTOs sent over the wire (no Maps or Sets — plain objects/arrays)
@@ -46,6 +47,7 @@ export interface RoomDTO {
   activeCheck: {
     deadline: number
   } | null
+  musicPlaying: boolean
 }
 
 // ── Client → Server ──────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ export type ClientMessage =
   | { type: 'ASSIGN_HOST'; payload: { playerId: string } }
   | { type: 'CHECK_IN'; payload: Record<string, never> }
   | { type: 'MARK_ACTIVE'; payload: Record<string, never> }
+  | { type: 'MUSIC_CONTROL'; payload: { playing: boolean } }
 
 // ── Server → Client ──────────────────────────────────────────────────────────
 
@@ -73,5 +76,6 @@ export type ServerMessage =
   | { type: 'HOST_CHANGED'; payload: { newHostId: string } }
   | { type: 'ATTENTION_CHECK'; payload: { deadline: number } }
   | { type: 'PLAYER_STATUS'; payload: { playerId: string; isActive: boolean } }
+  | { type: 'MUSIC_STATE'; payload: { playing: boolean } }
   | { type: 'ERROR'; payload: { message: string } }
   | { type: 'ROOM_NOT_FOUND'; payload: { roomId?: string; code?: string } }
